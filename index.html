@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Marantan</title>
+<style>
+  :root{
+    --bg:#f3f3f3; --card:#ffffff; --borda:#e5e5e5; --texto:#1b1b1b; --suave:#5f5f5f;
+    --acento:#0067c0; --acento-hover:#005aa8; --perigo:#c42b1c; --sombra:0 1px 3px rgba(0,0,0,.08);
+    --hover:#f9f9f9;
+  }
+  [data-tema="escuro"]{
+    --bg:#202020; --card:#2b2b2b; --borda:#3a3a3a; --texto:#f0f0f0; --suave:#a8a8a8;
+    --acento:#4cc2ff; --acento-hover:#6fd0ff; --perigo:#ff6b5b; --sombra:0 1px 3px rgba(0,0,0,.4);
+    --hover:#323232;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--texto);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:15px}
+  button,input{font:inherit}
+
+  /* ---------- Barra superior ---------- */
+  header{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--borda);
+    display:flex;align-items:center;gap:10px;padding:10px 16px;flex-wrap:wrap}
+  header h1{font-size:18px;font-weight:600;margin:0;flex:1;min-width:150px}
+  header h1 span{color:var(--suave);font-weight:400;font-size:13px;margin-left:6px}
+  .btn{border:1px solid var(--borda);background:var(--card);color:var(--texto);border-radius:6px;
+    padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn:hover{background:var(--hover)}
+  .btn.primario{background:var(--acento);border-color:var(--acento);color:#fff}
+  [data-tema="escuro"] .btn.primario{color:#000}
+  .btn.primario:hover{background:var(--acento-hover)}
+  .btn.ativo{outline:2px solid var(--acento)}
+  .btn.perigo{color:var(--perigo)}
+
+  /* ---------- Conteúdo ---------- */
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 40px;transition:filter .25s,opacity .25s}
+  body.esmaecido main{filter:blur(10px);opacity:.35;pointer-events:none;user-select:none}
+  .busca{width:100%;padding:9px 12px;border:1px solid var(--borda);border-radius:6px;
+    background:var(--card);color:var(--texto);margin-bottom:18px}
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .card{position:relative;background:var(--card);border:1px solid var(--borda);border-radius:8px;
+    box-shadow:var(--sombra);padding:16px;display:flex;gap:12px;align-items:flex-start;
+    text-decoration:none;color:inherit;transition:transform .12s,border-color .12s}
+  a.card:hover{transform:translateY(-2px);border-color:var(--acento)}
+  .card .ico{font-size:30px;line-height:1;flex-shrink:0;width:38px;text-align:center}
+  .card .info{min-width:0;flex:1}
+  .card .nome{font-weight:600;font-size:16px;margin-bottom:3px}
+  .card .desc{color:var(--suave);font-size:13px;margin-bottom:6px}
+  .card .url{color:var(--suave);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .acoes{display:flex;gap:4px;margin-top:10px;flex-wrap:wrap}
+  .acoes .btn{padding:3px 8px;font-size:13px}
+  .vazio{text-align:center;color:var(--suave);padding:50px 10px}
+
+  /* ---------- Modal ---------- */
+  dialog{border:1px solid var(--borda);border-radius:10px;background:var(--card);color:var(--texto);
+    padding:24px;width:min(440px,calc(100vw - 32px));box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  dialog::backdrop{background:rgba(0,0,0,.4)}
+  dialog h3{margin:0 0 16px}
+  .campo{display:block;margin-bottom:12px}
+  .campo span{display:block;font-size:13px;color:var(--suave);margin-bottom:4px}
+  .campo input{width:100%;padding:9px 11px;border:1px solid var(--borda);border-radius:6px;
+    background:var(--bg);color:var(--texto)}
+  .campo input:focus{outline:2px solid var(--acento);border-color:transparent}
+  .erro{color:var(--perigo);font-size:13px;min-height:18px;margin:4px 0 10px}
+  .linha-btns{display:flex;gap:8px;justify-content:flex-end}
+
+  /* ---------- Aviso / carregando ---------- */
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--texto);color:var(--bg);
+    padding:10px 18px;border-radius:6px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;
+    max-width:calc(100vw - 32px);text-align:center}
+  #toast.vis{opacity:1}
+  #carregando{position:fixed;top:0;left:0;height:3px;width:0;background:var(--acento);z-index:60;transition:width .3s}
+  #carregando.on{width:70%}
+
+  @media (max-width:560px){
+    header .txt{display:none}
+    header{gap:6px}
+  }
+</style>
+</head>
+<body>
+<div id="carregando"></div>
+
+<header>
+  <h1>Painel Marantan<span id="contagem"></span></h1>
+  <button class="btn" onclick="alternarTema()" title="Dia / Noite"><span id="icoTema">🌙</span><span class="txt" id="txtTema">Noite</span></button>
+  <button class="btn" onclick="alternarEsmaecer()" title="Ocultar / mostrar a tela"><span>👁</span><span class="txt" id="txtEsmaecer">Ocultar</span></button>
+  <button class="btn" id="btnEditar" onclick="alternarEdicao()" title="Organizar, editar e excluir"><span>✎</span><span class="txt">Organizar</span></button>
+  <button class="btn primario" onclick="abrirModal()" title="Incluir nova aplicação"><span>＋</span><span class="txt">Nova aplicação</span></button>
+</header>
+
+<main>
+  <input type="search" class="busca" id="busca" placeholder="Buscar aplicação..." oninput="render()">
+  <div class="grade" id="grade"><div class="vazio" style="grid-column:1/-1">Carregando...</div></div>
+</main>
+
+<!-- ================= MODAL INCLUIR/EDITAR ================= -->
+<dialog id="modal">
+  <form id="formApp" method="dialog">
+    <h3 id="tituloModal">Nova aplicação</h3>
+    <input type="hidden" id="appId">
+    <label class="campo"><span>Nome *</span><input id="appNome" required maxlength="60"></label>
+    <label class="campo"><span>Endereço (URL) *</span>
+      <input id="appUrl" required placeholder="https://engmarcoandrade.github.io/nomedoapp/"></label>
+    <label class="campo"><span>Ícone (emoji)</span><input id="appIcone" maxlength="4" placeholder="🔗"></label>
+    <label class="campo"><span>Descrição</span><input id="appDesc" maxlength="80" placeholder="Opcional"></label>
+    <div class="erro" id="erroModal"></div>
+    <div class="linha-btns">
+      <button type="button" class="btn" onclick="fecharModal()">Cancelar</button>
+      <button type="submit" class="btn primario" id="btnSalvar">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+/* ===================== CONFIGURAÇÃO ===================== */
+const API_URL   = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT';   // termina em /exec
+const CHAVE_TEMA = 'marantan_tema';                   // só a preferência dia/noite deste aparelho
+
+/* ===================== ESTADO ===================== */
+let apps = [];
+let editando = false;
+
+/* ===================== UTILITÁRIOS ===================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function lerLS(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function gravarLS(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('vis');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('vis'), 3000);
+}
+function carregando(on){ $('carregando').classList.toggle('on', on); }
+
+async function api(acao, dados = {}){
+  if (API_URL.indexOf('COLE_AQUI') === 0) throw new Error('Configure a API_URL no index.html.');
+  carregando(true);
+  try{
+    const r = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(Object.assign({ acao }, dados))
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.msg || 'Erro no servidor.');
+    return j;
+  } finally { carregando(false); }
+}
+
+/* ===================== TEMA E ESMAECER ===================== */
+function aplicarTema(t){
+  document.documentElement.setAttribute('data-tema', t);
+  $('icoTema').textContent = t === 'escuro' ? '☀️' : '🌙';
+  $('txtTema').textContent = t === 'escuro' ? 'Dia' : 'Noite';
+}
+function alternarTema(){
+  const novo = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
+  aplicarTema(novo); gravarLS(CHAVE_TEMA, novo);
+}
+function alternarEsmaecer(){
+  const on = document.body.classList.toggle('esmaecido');
+  $('txtEsmaecer').textContent = on ? 'Mostrar' : 'Ocultar';
+}
+
+/* ===================== LISTAGEM ===================== */
+function render(){
+  const termo = $('busca').value.trim().toLowerCase();
+  const lista = apps.filter(a => !termo ||
+    (a.nome + ' ' + a.descricao + ' ' + a.url).toLowerCase().includes(termo));
+
+  $('contagem').textContent = apps.length ? `${apps.length} aplicaç${apps.length === 1 ? 'ão' : 'ões'}` : '';
+  $('btnEditar').classList.toggle('ativo', editando);
+
+  if (!lista.length){
+    $('grade').innerHTML = `<div class="vazio" style="grid-column:1/-1">${
+      apps.length ? 'Nenhuma aplicação encontrada.' : 'Nenhuma aplicação cadastrada ainda. Clique em <b>＋ Nova aplicação</b>.'}</div>`;
+    return;
+  }
+
+  $('grade').innerHTML = lista.map(a => {
+    const urlCurta = a.url.replace(/^https?:\/\//, '');
+    const corpo = `
+      <div class="ico">${esc(a.icone || '🔗')}</div>
+      <div class="info">
+        <div class="nome">${esc(a.nome)}</div>
+        ${a.descricao ? `<div class="desc">${esc(a.descricao)}</div>` : ''}
+        <div class="url" title="${esc(a.url)}">${esc(urlCurta)}</div>
+        ${editando ? `<div class="acoes">
+            <button class="btn" onclick="mover('${a.id}',-1)" title="Subir">↑</button>
+            <button class="btn" onclick="mover('${a.id}',1)" title="Descer">↓</button>
+            <button class="btn" onclick="abrirModal('${a.id}')" title="Editar">✎ Editar</button>
+            <button class="btn perigo" onclick="excluir('${a.id}')" title="Excluir">🗑 Excluir</button>
+          </div>` : ''}
+      </div>`;
+    return editando
+      ? `<div class="card">${corpo}</div>`
+      : `<a class="card" href="${esc(a.url)}" target="_blank" rel="noopener">${corpo}</a>`;
+  }).join('');
+}
+
+async function recarregar(){
+  try{ const j = await api('listar'); apps = j.apps || []; render(); }
+  catch(err){
+    $('grade').innerHTML = `<div class="vazio" style="grid-column:1/-1">Não foi possível carregar: ${esc(err.message)}</div>`;
+  }
+}
+
+function alternarEdicao(){ editando = !editando; render(); }
+
+/* ===================== INCLUIR / EDITAR ===================== */
+function abrirModal(id){
+  const a = id ? apps.find(x => x.id === id) : null;
+  $('tituloModal').textContent = a ? 'Editar aplicação' : 'Nova aplicação';
+  $('appId').value    = a ? a.id : '';
+  $('appNome').value  = a ? a.nome : '';
+  $('appUrl').value   = a ? a.url : 'https://engmarcoandrade.github.io/';
+  $('appIcone').value = a ? a.icone : '';
+  $('appDesc').value  = a ? a.descricao : '';
+  $('erroModal').textContent = '';
+  $('modal').showModal();
+  setTimeout(() => $('appNome').focus(), 50);
+}
+function fecharModal(){ $('modal').close(); }
+
+$('formApp').addEventListener('submit', async e => {
+  e.preventDefault();
+  const app = {
+    id: $('appId').value || null,
+    nome: $('appNome').value.trim(),
+    url: $('appUrl').value.trim(),
+    icone: $('appIcone').value.trim() || '🔗',
+    descricao: $('appDesc').value.trim()
+  };
+  if (!/^https?:\/\/.+/i.test(app.url)){ $('erroModal').textContent = 'O endereço deve começar com https://'; return; }
+  const btn = $('btnSalvar'); btn.disabled = true;
+  try{
+    const j = await api('salvar', { app });
+    apps = j.apps || []; fecharModal(); render();
+    toast(app.id ? 'Aplicação atualizada.' : 'Aplicação incluída.');
+  }catch(err){ $('erroModal').textContent = err.message; }
+  finally{ btn.disabled = false; }
+});
+
+/* ===================== EXCLUIR / MOVER ===================== */
+async function excluir(id){
+  const a = apps.find(x => x.id === id); if (!a) return;
+  if (!confirm(`Excluir "${a.nome}" do painel?\n\n(Isso só remove o atalho. O app continua existindo no GitHub.)`)) return;
+  try{ const j = await api('excluir', { id }); apps = j.apps || []; render(); toast('Aplicação removida do painel.'); }
+  catch(err){ toast(err.message); }
+}
+
+async function mover(id, dir){
+  try{ const j = await api('mover', { id, dir }); apps = j.apps || []; render(); }
+  catch(err){ toast(err.message); }
+}
+
+/* ===================== INÍCIO ===================== */
+aplicarTema(lerLS(CHAVE_TEMA) === 'escuro' ? 'escuro' : 'claro');
+recarregar();
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('esmaecido')) alternarEsmaecer();
+});
+</script>
+</body>
+</html>
